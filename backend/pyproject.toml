@@ -1,0 +1,47 @@
+[project]
+name = "orchestrator-backend"
+version = "0.1.0"
+description = "Configuration-driven multi-agent orchestration platform"
+requires-python = ">=3.11,<3.14"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "pydantic>=2.9",
+    "pydantic-settings>=2.6",
+    "pyyaml>=6.0",
+    "sse-starlette>=2.1",
+
+    "langgraph>=0.2.60",
+    "langgraph-checkpoint-postgres>=2.0.7",
+    "langchain-core>=0.3.28",
+    "langchain-anthropic>=0.3.0",
+    "langchain-mcp-adapters>=0.0.9",
+    "mcp>=1.2.0",
+
+    "sqlalchemy>=2.0.36",
+    # SQLAlchemy's async engine bridges to sync DBAPI calls through greenlet.
+    # It is not always pulled in as a transitive dependency, and its absence
+    # only shows up at the first query, so it is pinned explicitly.
+    "greenlet>=3.1",
+    "psycopg[binary,pool]>=3.2",
+    "pgvector>=0.3.6",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "httpx>=0.27",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+filterwarnings = ["ignore::DeprecationWarning"]

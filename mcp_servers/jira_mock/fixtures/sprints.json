@@ -1,0 +1,633 @@
+{
+  "sprints": [
+    {
+      "id": "SPR-31",
+      "name": "Sprint 31",
+      "state": "closed",
+      "start_date": "2025-04-07",
+      "end_date": "2025-04-18",
+      "committed_points": 42,
+      "completed_points": 34
+    },
+    {
+      "id": "SPR-32",
+      "name": "Sprint 32",
+      "state": "closed",
+      "start_date": "2025-04-21",
+      "end_date": "2025-05-02",
+      "committed_points": 40,
+      "completed_points": 38
+    },
+    {
+      "id": "SPR-33",
+      "name": "Sprint 33",
+      "state": "closed",
+      "start_date": "2025-05-05",
+      "end_date": "2025-05-16",
+      "committed_points": 45,
+      "completed_points": 31
+    },
+    {
+      "id": "SPR-34",
+      "name": "Sprint 34",
+      "state": "closed",
+      "start_date": "2025-05-19",
+      "end_date": "2025-05-30",
+      "committed_points": 40,
+      "completed_points": 40
+    },
+    {
+      "id": "SPR-35",
+      "name": "Sprint 35",
+      "state": "closed",
+      "start_date": "2025-06-02",
+      "end_date": "2025-06-13",
+      "committed_points": 44,
+      "completed_points": 37
+    },
+    {
+      "id": "SPR-36",
+      "name": "Sprint 36",
+      "state": "closed",
+      "start_date": "2025-06-16",
+      "end_date": "2025-06-27",
+      "committed_points": 42,
+      "completed_points": 39
+    },
+    {
+      "id": "SPR-37",
+      "name": "Sprint 37",
+      "state": "closed",
+      "start_date": "2025-06-30",
+      "end_date": "2025-07-11",
+      "committed_points": 46,
+      "completed_points": 35
+    },
+    {
+      "id": "SPR-38",
+      "name": "Sprint 38",
+      "state": "closed",
+      "start_date": "2025-07-14",
+      "end_date": "2025-07-25",
+      "committed_points": 43,
+      "completed_points": 41
+    }
+  ],
+  "issues": {
+    "SPR-31": [
+      {
+        "key": "SPR-31-1",
+        "summary": "Rewrite the onboarding empty state",
+        "type": "Story",
+        "status": "Done",
+        "story_points": 2,
+        "assignee": "Ana Duarte"
+      },
+      {
+        "key": "SPR-31-2",
+        "summary": "Fix flaky checkout integration test",
+        "type": "Task",
+        "status": "Done",
+        "story_points": 8,
+        "assignee": "Elena Roche"
+      },
+      {
+        "key": "SPR-31-3",
+        "summary": "Backfill missing tenant metadata",
+        "type": "Bug",
+        "status": "Done",
+        "story_points": 1,
+        "assignee": "Ana Duarte"
+      },
+      {
+        "key": "SPR-31-4",
+        "summary": "Rewrite the onboarding empty state",
+        "type": "Spike",
+        "status": "Done",
+        "story_points": 1,
+        "assignee": "Ana Duarte"
+      },
+      {
+        "key": "SPR-31-5",
+        "summary": "Fix flaky checkout integration test",
+        "type": "Spike",
+        "status": "Done",
+        "story_points": 2,
+        "assignee": "Ana Duarte"
+      },
+      {
+        "key": "SPR-31-6",
+        "summary": "Fix flaky checkout integration test",
+        "type": "Bug",
+        "status": "Done",
+        "story_points": 8,
+        "assignee": "Elena Roche"
+      },
+      {
+        "key": "SPR-31-7",
+        "summary": "Upgrade the Postgres driver",
+        "type": "Spike",
+        "status": "Done",
+        "story_points": 1,
+        "assignee": "Ana Duarte"
+      },
+      {
+        "key": "SPR-31-8",
+        "summary": "Backfill missing tenant metadata",
+        "type": "Bug",
+        "status": "Done",
+        "story_points": 2,
+        "assignee": "Chika Mori"
+      }
+    ],
+    "SPR-32": [
+      {
+        "key": "SPR-32-1",
+        "summary": "Backfill missing tenant metadata",
+        "type": "Story",
+        "status": "Done",
+        "story_points": 2,
+        "assignee": "Elena Roche"
+      },
+      {
+        "key": "SPR-32-2",
+        "summary": "Backfill missing tenant metadata",
+        "type": "Bug",
+        "status": "Done",
+        "story_points": 3,
+        "assignee": "Ana Duarte"
+      },
+      {
+        "key": "SPR-32-3",
+        "summary": "Upgrade the Postgres driver",
+        "type": "Bug",
+        "status": "Done",
+        "story_points": 8,
+        "assignee": "Chika Mori"
+      },
+      {
+        "key": "SPR-32-4",
+        "summary": "Backfill missing tenant metadata",
+        "type": "Story",
+        "status": "Done",
+        "story_points": 1,
+        "assignee": "Elena Roche"
+      },
+      {
+        "key": "SPR-32-5",
+        "summary": "Upgrade the Postgres driver",
+        "type": "Bug",
+        "status": "Done",
+        "story_points": 1,
+        "assignee": "Dmitri Vasilev"
+      },
+      {
+        "key": "SPR-32-6",
+        "summary": "Rewrite the onboarding empty state",
+        "type": "Task",
+        "status": "Done",
+        "story_points": 8,
+        "assignee": "Dmitri Vasilev"
+      },
+      {
+        "key": "SPR-32-7",
+        "summary": "Reduce cold-start time for the worker pool",
+        "type": "Task",
+        "status": "Done",
+        "story_points": 8,
+        "assignee": "Chika Mori"
+      },
+      {
+        "key": "SPR-32-8",
+        "summary": "Migrate session store off in-memory cache",
+        "type": "Bug",
+        "status": "Done",
+        "story_points": 2,
+        "assignee": "Ana Duarte"
+      },
+      {
+        "key": "SPR-32-9",
+        "summary": "Backfill missing tenant metadata",
+        "type": "Spike",
+        "status": "Done",
+        "story_points": 8,
+        "assignee": "Chika Mori"
+      }
+    ],
+    "SPR-33": [
+      {
+        "key": "SPR-33-1",
+        "summary": "Upgrade the Postgres driver",
+        "type": "Story",
+        "status": "Done",
+        "story_points": 3,
+        "assignee": "Ana Duarte"
+      },
+      {
+        "key": "SPR-33-2",
+        "summary": "Rewrite the onboarding empty state",
+        "type": "Bug",
+        "status": "Done",
+        "story_points": 8,
+        "assignee": "Chika Mori"
+      },
+      {
+        "key": "SPR-33-3",
+        "summary": "Reduce cold-start time for the worker pool",
+        "type": "Spike",
+        "status": "Done",
+        "story_points": 2,
+        "assignee": "Ana Duarte"
+      },
+      {
+        "key": "SPR-33-4",
+        "summary": "Backfill missing tenant metadata",
+        "type": "Task",
+        "status": "Done",
+        "story_points": 1,
+        "assignee": "Chika Mori"
+      },
+      {
+        "key": "SPR-33-5",
+        "summary": "Upgrade the Postgres driver",
+        "type": "Spike",
+        "status": "Done",
+        "story_points": 3,
+        "assignee": "Elena Roche"
+      },
+      {
+        "key": "SPR-33-6",
+        "summary": "Fix flaky checkout integration test",
+        "type": "Story",
+        "status": "Done",
+        "story_points": 5,
+        "assignee": "Chika Mori"
+      },
+      {
+        "key": "SPR-33-7",
+        "summary": "Fix flaky checkout integration test",
+        "type": "Story",
+        "status": "Done",
+        "story_points": 5,
+        "assignee": "Chika Mori"
+      },
+      {
+        "key": "SPR-33-8",
+        "summary": "Ship the invoice PDF export",
+        "type": "Spike",
+        "status": "Rolled over",
+        "story_points": 8,
+        "assignee": "Chika Mori"
+      },
+      {
+        "key": "SPR-33-9",
+        "summary": "Harden the webhook retry policy",
+        "type": "Bug",
+        "status": "Rolled over",
+        "story_points": 1,
+        "assignee": "Elena Roche"
+      }
+    ],
+    "SPR-34": [
+      {
+        "key": "SPR-34-1",
+        "summary": "Add pagination to the audit log endpoint",
+        "type": "Bug",
+        "status": "Done",
+        "story_points": 5,
+        "assignee": "Chika Mori"
+      },
+      {
+        "key": "SPR-34-2",
+        "summary": "Investigate p99 latency on /search",
+        "type": "Spike",
+        "status": "Done",
+        "story_points": 2,
+        "assignee": "Dmitri Vasilev"
+      },
+      {
+        "key": "SPR-34-3",
+        "summary": "Fix flaky checkout integration test",
+        "type": "Bug",
+        "status": "Done",
+        "story_points": 5,
+        "assignee": "Dmitri Vasilev"
+      },
+      {
+        "key": "SPR-34-4",
+        "summary": "Backfill missing tenant metadata",
+        "type": "Task",
+        "status": "Done",
+        "story_points": 5,
+        "assignee": "Ben Oyelaran"
+      },
+      {
+        "key": "SPR-34-5",
+        "summary": "Backfill missing tenant metadata",
+        "type": "Task",
+        "status": "Done",
+        "story_points": 5,
+        "assignee": "Dmitri Vasilev"
+      },
+      {
+        "key": "SPR-34-6",
+        "summary": "Investigate p99 latency on /search",
+        "type": "Bug",
+        "status": "Rolled over",
+        "story_points": 3,
+        "assignee": "Ana Duarte"
+      }
+    ],
+    "SPR-35": [
+      {
+        "key": "SPR-35-1",
+        "summary": "Investigate p99 latency on /search",
+        "type": "Bug",
+        "status": "Done",
+        "story_points": 2,
+        "assignee": "Ana Duarte"
+      },
+      {
+        "key": "SPR-35-2",
+        "summary": "Upgrade the Postgres driver",
+        "type": "Bug",
+        "status": "Done",
+        "story_points": 5,
+        "assignee": "Chika Mori"
+      },
+      {
+        "key": "SPR-35-3",
+        "summary": "Add pagination to the audit log endpoint",
+        "type": "Bug",
+        "status": "Done",
+        "story_points": 3,
+        "assignee": "Dmitri Vasilev"
+      },
+      {
+        "key": "SPR-35-4",
+        "summary": "Harden the webhook retry policy",
+        "type": "Task",
+        "status": "Done",
+        "story_points": 8,
+        "assignee": "Ben Oyelaran"
+      },
+      {
+        "key": "SPR-35-5",
+        "summary": "Upgrade the Postgres driver",
+        "type": "Story",
+        "status": "Done",
+        "story_points": 8,
+        "assignee": "Dmitri Vasilev"
+      },
+      {
+        "key": "SPR-35-6",
+        "summary": "Rewrite the onboarding empty state",
+        "type": "Spike",
+        "status": "Done",
+        "story_points": 8,
+        "assignee": "Dmitri Vasilev"
+      },
+      {
+        "key": "SPR-35-7",
+        "summary": "Reduce cold-start time for the worker pool",
+        "type": "Spike",
+        "status": "Done",
+        "story_points": 5,
+        "assignee": "Ana Duarte"
+      }
+    ],
+    "SPR-36": [
+      {
+        "key": "SPR-36-1",
+        "summary": "Investigate p99 latency on /search",
+        "type": "Spike",
+        "status": "Done",
+        "story_points": 1,
+        "assignee": "Ben Oyelaran"
+      },
+      {
+        "key": "SPR-36-2",
+        "summary": "Harden the webhook retry policy",
+        "type": "Story",
+        "status": "Done",
+        "story_points": 1,
+        "assignee": "Ana Duarte"
+      },
+      {
+        "key": "SPR-36-3",
+        "summary": "Upgrade the Postgres driver",
+        "type": "Bug",
+        "status": "Done",
+        "story_points": 1,
+        "assignee": "Elena Roche"
+      },
+      {
+        "key": "SPR-36-4",
+        "summary": "Harden the webhook retry policy",
+        "type": "Story",
+        "status": "Done",
+        "story_points": 1,
+        "assignee": "Ana Duarte"
+      },
+      {
+        "key": "SPR-36-5",
+        "summary": "Upgrade the Postgres driver",
+        "type": "Spike",
+        "status": "Done",
+        "story_points": 2,
+        "assignee": "Ben Oyelaran"
+      },
+      {
+        "key": "SPR-36-6",
+        "summary": "Harden the webhook retry policy",
+        "type": "Task",
+        "status": "Done",
+        "story_points": 3,
+        "assignee": "Dmitri Vasilev"
+      },
+      {
+        "key": "SPR-36-7",
+        "summary": "Reduce cold-start time for the worker pool",
+        "type": "Spike",
+        "status": "Done",
+        "story_points": 1,
+        "assignee": "Dmitri Vasilev"
+      }
+    ],
+    "SPR-37": [
+      {
+        "key": "SPR-37-1",
+        "summary": "Fix flaky checkout integration test",
+        "type": "Bug",
+        "status": "Done",
+        "story_points": 3,
+        "assignee": "Ana Duarte"
+      },
+      {
+        "key": "SPR-37-2",
+        "summary": "Ship the invoice PDF export",
+        "type": "Spike",
+        "status": "Done",
+        "story_points": 3,
+        "assignee": "Ben Oyelaran"
+      },
+      {
+        "key": "SPR-37-3",
+        "summary": "Add pagination to the audit log endpoint",
+        "type": "Bug",
+        "status": "Done",
+        "story_points": 8,
+        "assignee": "Elena Roche"
+      },
+      {
+        "key": "SPR-37-4",
+        "summary": "Migrate session store off in-memory cache",
+        "type": "Story",
+        "status": "Done",
+        "story_points": 3,
+        "assignee": "Elena Roche"
+      },
+      {
+        "key": "SPR-37-5",
+        "summary": "Fix flaky checkout integration test",
+        "type": "Task",
+        "status": "Done",
+        "story_points": 3,
+        "assignee": "Elena Roche"
+      },
+      {
+        "key": "SPR-37-6",
+        "summary": "Migrate session store off in-memory cache",
+        "type": "Task",
+        "status": "Done",
+        "story_points": 3,
+        "assignee": "Ben Oyelaran"
+      },
+      {
+        "key": "SPR-37-7",
+        "summary": "Backfill missing tenant metadata",
+        "type": "Task",
+        "status": "Done",
+        "story_points": 8,
+        "assignee": "Ben Oyelaran"
+      },
+      {
+        "key": "SPR-37-8",
+        "summary": "Investigate p99 latency on /search",
+        "type": "Spike",
+        "status": "Done",
+        "story_points": 8,
+        "assignee": "Ben Oyelaran"
+      },
+      {
+        "key": "SPR-37-9",
+        "summary": "Harden the webhook retry policy",
+        "type": "Story",
+        "status": "Rolled over",
+        "story_points": 2,
+        "assignee": "Ana Duarte"
+      }
+    ],
+    "SPR-38": [
+      {
+        "key": "SPR-38-1",
+        "summary": "Ship the invoice PDF export",
+        "type": "Bug",
+        "status": "Done",
+        "story_points": 5,
+        "assignee": "Elena Roche"
+      },
+      {
+        "key": "SPR-38-2",
+        "summary": "Reduce cold-start time for the worker pool",
+        "type": "Task",
+        "status": "Done",
+        "story_points": 3,
+        "assignee": "Chika Mori"
+      },
+      {
+        "key": "SPR-38-3",
+        "summary": "Investigate p99 latency on /search",
+        "type": "Story",
+        "status": "Done",
+        "story_points": 1,
+        "assignee": "Ben Oyelaran"
+      },
+      {
+        "key": "SPR-38-4",
+        "summary": "Investigate p99 latency on /search",
+        "type": "Task",
+        "status": "Done",
+        "story_points": 5,
+        "assignee": "Ben Oyelaran"
+      },
+      {
+        "key": "SPR-38-5",
+        "summary": "Upgrade the Postgres driver",
+        "type": "Story",
+        "status": "Done",
+        "story_points": 5,
+        "assignee": "Dmitri Vasilev"
+      },
+      {
+        "key": "SPR-38-6",
+        "summary": "Fix flaky checkout integration test",
+        "type": "Story",
+        "status": "Done",
+        "story_points": 3,
+        "assignee": "Dmitri Vasilev"
+      },
+      {
+        "key": "SPR-38-7",
+        "summary": "Reduce cold-start time for the worker pool",
+        "type": "Bug",
+        "status": "Done",
+        "story_points": 2,
+        "assignee": "Dmitri Vasilev"
+      },
+      {
+        "key": "SPR-38-8",
+        "summary": "Rewrite the onboarding empty state",
+        "type": "Spike",
+        "status": "Done",
+        "story_points": 3,
+        "assignee": "Dmitri Vasilev"
+      }
+    ]
+  },
+  "team_capacity": {
+    "next_sprint_id": "SPR-39",
+    "start_date": "2025-07-28",
+    "end_date": "2025-08-08",
+    "working_days": 10,
+    "members": [
+      {
+        "name": "Ana Duarte",
+        "role": "Backend",
+        "days_available": 9
+      },
+      {
+        "name": "Ben Oyelaran",
+        "role": "Backend",
+        "days_available": 10
+      },
+      {
+        "name": "Chika Mori",
+        "role": "Frontend",
+        "days_available": 8
+      },
+      {
+        "name": "Dmitri Vasilev",
+        "role": "Frontend",
+        "days_available": 10
+      },
+      {
+        "name": "Elena Roche",
+        "role": "QA",
+        "days_available": 7
+      }
+    ],
+    "planned_time_off_days": 6,
+    "notes": "Two engineers are on leave for part of the sprint; QA is at 70 percent."
+  }
+}

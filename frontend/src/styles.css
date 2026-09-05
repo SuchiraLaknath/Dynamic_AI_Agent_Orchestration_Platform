@@ -1,0 +1,218 @@
+/* Design tokens and layout. Plain CSS, no framework -- there is nothing here
+   that a utility framework's config would earn its place explaining. */
+
+:root {
+  --bg: #f4f5f8;
+  --surface: #ffffff;
+  --ink: #171a21;
+  --muted: #666c7c;
+  --line: #e0e2e9;
+  --accent: #2f6df6;
+  --ok: #1f9d63;
+  --warn: #c8912a;
+  --danger: #d64541;
+  --radius: 12px;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+code, pre { font-family: var(--mono); font-size: 12.5px; }
+h1 { font-size: 22px; margin: 0 0 4px; }
+h2 { font-size: 15px; margin: 0 0 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+h3 { font-size: 12px; margin: 16px 0 6px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+p { margin: 0 0 8px; }
+
+.app { max-width: 1240px; margin: 0 auto; padding: 28px 20px 60px; }
+.app__header { margin-bottom: 18px; }
+.app__header .muted { max-width: 70ch; }
+.app__columns { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 16px; align-items: start; }
+.app__main { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.app__side { position: sticky; top: 20px; }
+
+@media (max-width: 900px) {
+  .app__columns { grid-template-columns: minmax(0, 1fr); }
+  .app__side { position: static; }
+}
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 16px;
+}
+.app__main .panel, .app__side .panel { margin-bottom: 0; }
+
+.muted { color: var(--muted); }
+.small { font-size: 12.5px; }
+.error { color: var(--danger); background: #fdecec; border: 1px solid #f4c9c8; border-radius: 8px; padding: 10px 12px; }
+
+button {
+  font: inherit;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #fff;
+  border-radius: 8px;
+  padding: 8px 16px;
+  cursor: pointer;
+}
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+button.danger { background: var(--danger); border-color: var(--danger); }
+.chip { background: transparent; color: var(--muted); border: 1px solid var(--line); padding: 5px 10px; font-size: 12.5px; }
+.chip:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+
+textarea, input[type="text"] {
+  font: inherit;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfbfd;
+  resize: vertical;
+}
+textarea:focus, input:focus { outline: 2px solid rgba(47, 109, 246, 0.35); border-color: var(--accent); }
+
+.goal-input label { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 6px; }
+.goal-input__actions { display: flex; align-items: center; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+.goal-input__examples { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* --- registry ------------------------------------------------------------ */
+.registry__toggle { background: transparent; color: var(--ink); border: none; padding: 0; font-weight: 600; }
+.registry__body { margin-top: 12px; }
+.registry table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.registry th { text-align: left; color: var(--muted); font-weight: 600; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.05em; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+.registry td { padding: 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.registry__role { color: var(--muted); max-width: 46ch; }
+
+/* --- trace --------------------------------------------------------------- */
+.trace__reasoning { background: #f2f6ff; border-left: 3px solid var(--accent); padding: 8px 12px; border-radius: 0 8px 8px 0; }
+.trace__tasks { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+
+.task { border: 1px solid var(--line); border-left: 3px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+.task--running { border-left-color: var(--accent); }
+.task--done, .task--completed { border-left-color: var(--ok); }
+.task--failed { border-left-color: var(--danger); }
+.task--declined { border-left-color: var(--warn); }
+
+.task__head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.task__id { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.task__agent { font-weight: 600; }
+.task__objective { margin: 0; font-size: 13.5px; }
+.task__output { background: #f7f8fa; border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px; margin: 8px 0 0; }
+
+.badge { margin-left: auto; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; padding: 2px 8px; border-radius: 20px; background: #eef0f4; color: var(--muted); }
+.badge--running { background: #e9f0ff; color: #12306f; }
+.badge--done, .badge--completed { background: #e8f7ef; color: #0f5537; }
+.badge--failed { background: #fdecec; color: #8c2320; }
+.badge--declined { background: #fdf4e0; color: #7a5a12; }
+
+.task__tools { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.toolcall { border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; background: #fbfbfd; }
+.toolcall--ok { border-color: #bfe6d1; }
+.toolcall--error { border-color: #f4c9c8; }
+.toolcall__head { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.toolcall__args { color: var(--muted); font-family: var(--mono); font-size: 11.5px; }
+.toolcall__preview { margin: 6px 0 0; max-height: 130px; overflow: auto; background: #fff; border: 1px solid var(--line); border-radius: 4px; padding: 6px; white-space: pre-wrap; }
+
+/* --- graph --------------------------------------------------------------- */
+.run-graph__canvas { height: 280px; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.node { display: flex; flex-direction: column; line-height: 1.3; }
+.node span { font-family: var(--mono); font-size: 10.5px; opacity: 0.75; }
+
+/* --- cost ---------------------------------------------------------------- */
+.cost-panel__figures { display: flex; flex-direction: column; gap: 8px; margin: 0; }
+.cost-panel__figures div { display: flex; justify-content: space-between; align-items: baseline; }
+.cost-panel__figures dt { color: var(--muted); font-size: 13px; }
+.cost-panel__figures dd { margin: 0; font-family: var(--mono); font-weight: 600; }
+.cost-panel__cost { color: var(--ok); }
+
+.taglist { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 5px; }
+.tag { font-family: var(--mono); font-size: 11.5px; padding: 2px 8px; border-radius: 20px; background: #eef0f4; color: var(--muted); }
+.tag--on { background: #e9f0ff; color: #12306f; }
+.tag--warn { background: #fdf4e0; color: #7a5a12; margin-left: 6px; }
+
+/* --- approval ------------------------------------------------------------ */
+.approval { background: #fffaf0; border: 1px solid #f0d9a8; border-left: 4px solid var(--warn); border-radius: var(--radius); padding: 16px; margin-bottom: 16px; }
+.approval h2 { color: #7a5a12; }
+.approval__objective { font-style: italic; color: var(--muted); }
+.approval__actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px; }
+
+.answer > .markdown { background: #f7f8fa; border: 1px solid var(--line); border-radius: 8px; padding: 16px 18px; }
+
+/* --- rendered markdown ---------------------------------------------------- */
+/* Model output is Markdown; these rules make it read as a document rather than
+   as source. Headings are deliberately damped — an h1 inside a panel is a
+   section title, not a page title. */
+.markdown { font-size: 14px; line-height: 1.6; overflow-wrap: break-word; }
+.markdown > *:first-child { margin-top: 0; }
+.markdown > *:last-child { margin-bottom: 0; }
+
+.markdown h1, .markdown h2, .markdown h3, .markdown h4 {
+  margin: 18px 0 8px;
+  line-height: 1.3;
+  color: var(--ink);
+  text-transform: none;
+  letter-spacing: normal;
+}
+.markdown h1 { font-size: 17px; font-weight: 700; }
+.markdown h2 { font-size: 15px; font-weight: 700; }
+.markdown h3 { font-size: 13.5px; font-weight: 600; }
+.markdown h4 { font-size: 13px; font-weight: 600; color: var(--muted); }
+
+.markdown p { margin: 0 0 10px; }
+.markdown strong { font-weight: 650; }
+.markdown ul, .markdown ol { margin: 0 0 10px; padding-left: 22px; }
+.markdown li { margin-bottom: 4px; }
+.markdown li > p { margin-bottom: 4px; }
+
+.markdown blockquote {
+  margin: 0 0 10px;
+  padding: 2px 0 2px 12px;
+  border-left: 3px solid var(--line);
+  color: var(--muted);
+}
+
+.markdown hr { border: none; border-top: 1px solid var(--line); margin: 16px 0; }
+
+.markdown code {
+  background: #eceef3;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+.markdown pre {
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 10px 12px;
+  overflow-x: auto;
+  margin: 0 0 10px;
+}
+.markdown pre code { background: none; padding: 0; font-size: 12px; }
+
+/* Tables carry the sprint figures, so they get real treatment. */
+.markdown__scroll { overflow-x: auto; margin: 0 0 12px; }
+.markdown table { border-collapse: collapse; width: 100%; font-size: 13px; }
+.markdown th, .markdown td {
+  border: 1px solid var(--line);
+  padding: 6px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+.markdown th { background: #eef0f4; font-weight: 600; color: var(--ink); white-space: nowrap; }
+.markdown tbody tr:nth-child(even) { background: #fafbfc; }
+
+/* Inside a trace task, output is supporting detail, not the headline. */
+.markdown--compact { font-size: 13px; }
+.markdown--compact h1 { font-size: 14.5px; }
+.markdown--compact h2 { font-size: 13.5px; }
+.markdown--compact h3, .markdown--compact h4 { font-size: 13px; }
+.markdown--compact table { font-size: 12px; }

@@ -1,0 +1,31 @@
+# The MCP server registry.
+#
+# Adding an integration is an edit to this file. Nothing in app/ names a server.
+# At startup app.mcp.manager opens a session to each entry below and calls
+# list_tools(); the schemas that come back are the only tool definitions the
+# platform has. Nothing here is hardcoded in Python.
+#
+# `name` becomes the namespace for that server's tools: the jira server's
+# get_sprints tool is addressed everywhere else as `jira.get_sprints`, and
+# agents.yaml selects it with a glob such as "jira.*".
+
+servers:
+  - name: jira
+    description: >-
+      Jira sprint board. Historical sprint records with committed and completed
+      story points, per-sprint issue lists, upcoming team capacity, and a write
+      tool that publishes a sprint commitment back to the board.
+    transport: stdio
+    # Paths are resolved against the repository root.
+    command: python
+    args: ["mcp_servers/jira_mock/server.py"]
+    env: {}
+
+  # A real Jira MCP server would replace the mock in place, with no code change:
+  #
+  # - name: jira
+  #   description: Production Jira Cloud board.
+  #   transport: streamable_http
+  #   url: https://mcp.atlassian.com/v1/sse
+  #   headers:
+  #     Authorization: "Bearer ${JIRA_MCP_TOKEN}"

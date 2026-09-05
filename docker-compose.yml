@@ -1,0 +1,69 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    # Deliberately not `env_file: .env` -- that would hand the database
+    # container ANTHROPIC_API_KEY, which it has no use for. A service gets the
+    # whole file only if it actually reads application settings; these three
+    # names are all Postgres needs, and .env still supplies them by
+    # substitution.
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-orchestrator}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-orchestrator}
+      POSTGRES_DB: ${POSTGRES_DB:-orchestrator}
+    ports:
+      # Published on 5433 by default so it cannot collide with a Postgres the
+      # developer already runs on 5432. Inside the compose network the backend
+      # still reaches it on 5432, so this only affects host access.
+      - "${POSTGRES_HOST_PORT:-5433}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-orchestrator}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    # The backend is the only service that reads application settings, so it
+    # gets the whole .env rather than a hand-maintained list of names. Adding a
+    # setting to .env now reaches the container without editing this file.
+    # `required: false` keeps a fresh clone (which has only .env.example)
+    # working on the settings' own defaults.
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      # `environment` wins over `env_file`, so this is the one value that must
+      # differ inside the compose network: .env holds a localhost:5433 URL for
+      # running uvicorn on the host, which inside a container would point at
+      # the container itself.
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-orchestrator}:${POSTGRES_PASSWORD:-orchestrator}@postgres:5432/${POSTGRES_DB:-orchestrator}
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    environment:
+      # Same reasoning as postgres: the dev server needs one compose-network
+      # value, not the application's settings or its API key.
+      BACKEND_ORIGIN: http://backend:8000
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
