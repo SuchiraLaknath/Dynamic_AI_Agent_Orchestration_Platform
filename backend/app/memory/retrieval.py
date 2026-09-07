@@ -48,19 +48,46 @@ async def record_plan(
         if run is None:
             raise RunNotFoundError(run_id)
         run.plan = plan
-        run.agent_ids = sorted({task["agent_id"] for task in plan})
+        # Capability ids, not the synthesized agent names. This column feeds the
+        # planner's "similar past runs" memory, and a stable vocabulary is what
+        # makes that useful -- generated names are different on every run.
+        run.agent_ids = sorted({task["capability_id"] for task in plan})
+
+
+async def pause_run(sessions: SessionFactory, run_id: str, usage: Usage) -> None:
+    """Record a run as paused, with what it has spent so far.
+
+    Separate from `finish_run` because a paused run is not over: it has no
+    outcome yet, and stamping `completed_at` on it would make an interrupted run
+    indistinguishable from a finished one in the run history.
+
+    The spend is written now rather than left until the run resumes, so a run
+    sitting on an approval queue still reports what it cost to get there.
+    """
+    async with sessions() as session, session.begin():
+        run = await session.get(Run, run_id)
+        if run is None:
+            raise RunNotFoundError(run_id)
+        run.status = "awaiting_approval"
+        _record_usage(run, usage)
 
 
 async def finish_run(
     sessions: SessionFactory,
     run_id: str,
     status: str,
-    usage: Usage,
+    usage: Usage | None = None,
     final_answer: str | None = None,
     failure: str | None = None,
     summary: str | None = None,
 ) -> None:
-    """Close out a run with its outcome and what it cost."""
+    """Close out a run with its outcome and what it cost.
+
+    `usage` of None means "leave the recorded totals alone". A run that fails
+    after being paused has already had its spend recorded, and the failure path
+    cannot recover it from the graph -- overwriting with zeros would erase the
+    only record of money that was really spent.
+    """
     async with sessions() as session, session.begin():
         run = await session.get(Run, run_id)
         if run is None:
@@ -69,10 +96,16 @@ async def finish_run(
         run.final_answer = final_answer
         run.failure = failure
         run.summary = summary
-        run.input_tokens = usage.input_tokens
-        run.output_tokens = usage.output_tokens
-        run.cost_usd = usage.cost_usd
+        if usage is not None:
+            _record_usage(run, usage)
         run.completed_at = datetime.now(timezone.utc)
+
+
+def _record_usage(run: Run, usage: Usage) -> None:
+    """Write a usage total onto a run row."""
+    run.input_tokens = usage.input_tokens
+    run.output_tokens = usage.output_tokens
+    run.cost_usd = usage.cost_usd
 
 
 async def get_run(sessions: SessionFactory, run_id: str) -> dict[str, Any]:

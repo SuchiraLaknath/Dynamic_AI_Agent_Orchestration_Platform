@@ -14,6 +14,8 @@ from typing import Annotated, Any, TypedDict
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.agents.models import SynthesizedAgent
+
 TASK_ID_PATTERN = re.compile(r"^[a-zA-Z0-9_-]{1,64}$")
 
 
@@ -22,10 +24,15 @@ class PlanValidationError(ValueError):
 
 
 class TaskSpec(BaseModel):
-    """One unit of work: run this agent against this objective."""
+    """One unit of work: an agent designed for it, and what it must produce."""
 
     task_id: str = Field(description="Short unique id for this task within the plan.")
-    agent_id: str = Field(description="Must be an agent id from the provided menu.")
+    capability_id: str = Field(
+        description="Must be a capability id from the provided menu. Sets the permission envelope."
+    )
+    agent: SynthesizedAgent = Field(
+        description="The agent to create for this task, designed to fit the capability above."
+    )
     objective: str = Field(
         min_length=1, description="What this agent must produce, in one or two sentences."
     )
@@ -83,23 +90,26 @@ class OrchestrationState(TypedDict, total=False):
 
 
 
-def validate_plan(plan: TaskPlan, known_agent_ids: set[str]) -> TaskPlan:
+def validate_plan(plan: TaskPlan, known_capability_ids: set[str]) -> TaskPlan:
     """Reject a plan the graph could not execute, naming exactly what is wrong.
 
-    This is the guard behind "the planner chooses from a retrieved menu": an
-    invented agent id fails here, loudly, rather than becoming a mystery at
-    execution time.
+    This checks plan *structure*: unique task ids, real capability ids, resolvable
+    dependencies, no cycles. It deliberately does not check whether each
+    synthesized agent fits its envelope -- that needs the discovered tool index,
+    and lives in app.agents.composer.realize_agent.
     """
     task_ids = [task.task_id for task in plan.tasks]
     duplicates = sorted({task_id for task_id in task_ids if task_ids.count(task_id) > 1})
     if duplicates:
         raise PlanValidationError(f"Plan reuses task_id(s) {duplicates}; task ids must be unique.")
 
-    invented = sorted({t.agent_id for t in plan.tasks if t.agent_id not in known_agent_ids})
+    invented = sorted(
+        {t.capability_id for t in plan.tasks if t.capability_id not in known_capability_ids}
+    )
     if invented:
         raise PlanValidationError(
-            f"Plan names unknown agent id(s) {invented}. Choose only from: "
-            f"{', '.join(sorted(known_agent_ids))}"
+            f"Plan names unknown capability id(s) {invented}. Choose only from: "
+            f"{', '.join(sorted(known_capability_ids))}"
         )
 
     known_task_ids = set(task_ids)

@@ -1,102 +1,79 @@
-# The agent registry.
+# The capability registry.
 #
-# An agent is a record here, not a class. app.agents.factory turns one of these
-# records plus its bound MCP tools into a runnable worker at request time.
-# Adding a specialist is an edit to this file.
+# These are NOT agents. Each record is an envelope: what a class of agent is
+# permitted to do, and the policy it must obey. There is deliberately no system
+# prompt here -- agents, including their prompts, are written by the planner at
+# runtime and validated against these envelopes. See app/agents/composer.py.
 #
-# `role` is the field the planner searches. Write it as a description of
-# capability -- what this agent can find out or work out -- because it is
-# embedded and matched against the user's goal. A job title retrieves badly.
+# `description` is the field the planner searches. Write it as a description of
+# capability -- what can be found out or worked out -- because it is embedded
+# and matched against the user's goal. A job title retrieves badly.
 #
-# `tool_selectors` are fnmatch globs over namespaced tool names
-# (`<server>.<tool>`). An agent only ever sees the tools it selects; this is the
-# role-based tool permission boundary.
+# `allowed_tool_selectors` are fnmatch globs over namespaced tool names
+# (`<server>.<tool>`). They are a ceiling, not an assignment: a synthesized
+# agent may request any subset of what these resolve to and nothing else. This
+# is the role-based tool permission boundary, and it is the reason a generated
+# agent cannot award itself a write tool.
 
-agents:
-  - id: jira_analyst
-    role: >-
+capabilities:
+  - id: jira_reporting
+    description: >-
       Retrieves and summarizes historical Jira sprint records: which sprints
       closed, how many story points were committed versus completed in each,
-      and the issue-level breakdown behind those numbers.
-    system_prompt: |
-      You analyze sprint history. Use the provided tools to fetch real numbers.
-      Never estimate or invent a figure you did not retrieve.
-
-      Report, for each sprint you retrieved: the sprint id, committed points and
-      completed points. Then state the completion rate as a percentage. Keep it
-      compact -- a later agent will do the forecasting, so do not forecast here.
-    model: claude-sonnet-5
-    tool_selectors: ["jira.get_sprints", "jira.get_sprint_issues"]
-    max_iterations: 6
+      the issue-level breakdown behind those numbers, and the rolling averages
+      and velocity trends that follow from them.
+    allowed_tool_selectors: ["jira.get_sprints", "jira.get_sprint_issues"]
+    allowed_models: ["claude-sonnet-5", "claude-haiku-4-5"]
+    default_model: claude-sonnet-5
+    max_iterations_limit: 8
     requires_approval: false
+    policy: |
+      Use the provided tools to fetch real numbers. Never estimate, invent or
+      recall a figure you did not retrieve in this task. If a number you need
+      was not returned by a tool, say that it was not retrieved.
 
-  - id: velocity_forecaster
-    role: >-
-      Predicts and forecasts sprint velocity: the story points a team is likely
-      to complete in the next upcoming sprint, computed as a rolling average of
-      completed points over previous sprints, with the spread and trend around
-      that average.
-    system_prompt: |
-      You forecast sprint velocity from completed story points.
-
-      Method, and do not deviate from it: take the completed points of the most
-      recent sprints, compute the arithmetic mean, and report it as the baseline
-      forecast. Also report the minimum, the maximum, and the standard deviation
-      so the reader can see the spread. Show the arithmetic explicitly so a
-      human can check it.
-
-      This is a rolling average, not a statistical model. Say so. If prior task
-      output already contains the sprint numbers, use them rather than
-      re-fetching; otherwise fetch them yourself.
-    model: claude-sonnet-5
-    tool_selectors: ["jira.get_sprints"]
-    max_iterations: 4
+  - id: capacity_analysis
+    description: >-
+      Reads who is actually available for the upcoming sprint -- team roster,
+      working days, planned time off and role coverage -- and adjusts a raw
+      velocity or commitment figure for real availability.
+    allowed_tool_selectors: ["jira.get_team_capacity"]
+    allowed_models: ["claude-sonnet-5", "claude-haiku-4-5"]
+    default_model: claude-sonnet-5
+    max_iterations_limit: 6
     requires_approval: false
+    policy: |
+      Show the availability ratio you derive and the arithmetic behind it, so a
+      human can check it. Never estimate a capacity figure you did not retrieve.
 
-  - id: capacity_planner
-    role: >-
-      Adjusts a raw velocity figure for who is actually available next sprint:
-      team roster, working days, planned time off and role coverage.
-    system_prompt: |
-      You adjust a baseline velocity for real team availability.
-
-      Fetch the upcoming sprint's capacity. Compare available member-days
-      against a full-availability baseline to get an availability ratio, then
-      apply that ratio to the baseline velocity you were given. State the ratio
-      and the adjusted number. Name any role that is under-covered.
-    model: claude-sonnet-5
-    tool_selectors: ["jira.get_team_capacity"]
-    max_iterations: 4
+  - id: analysis_only
+    description: >-
+      Reasons over figures and findings that earlier tasks already produced:
+      reviewing a proposed plan or commitment for delivery risk, weighing
+      trade-offs, and drawing conclusions. Has no tools and retrieves nothing.
+    allowed_tool_selectors: []
+    allowed_models: ["claude-sonnet-5", "claude-haiku-4-5"]
+    default_model: claude-sonnet-5
+    max_iterations_limit: 3
     requires_approval: false
+    policy: |
+      You have no tools. Work only from the objective and the upstream task
+      output you were given. Name the evidence behind every claim, and if the
+      evidence for something is not present in what you were given, say so
+      instead of speculating.
 
-  - id: risk_reviewer
-    role: >-
-      Reviews a proposed sprint commitment or delivery plan for delivery risk:
-      over-commitment against history, rollover patterns, single points of
-      failure and unstated assumptions.
-    system_prompt: |
-      You review a proposed plan for delivery risk. You have no tools; work only
-      from the figures in the task objective and prior task output.
-
-      List at most four concrete risks. For each, name the evidence you are
-      reasoning from. If the evidence for a risk is not present in what you were
-      given, say that instead of speculating.
-    model: claude-sonnet-5
-    tool_selectors: []
-    max_iterations: 2
-    requires_approval: false
-
-  - id: sprint_plan_publisher
-    role: >-
+  - id: jira_writeback
+    description: >-
       Writes a finalized sprint commitment back to the Jira board, publishing
       the committed point total and its rationale to the team.
-    system_prompt: |
-      You publish an agreed sprint commitment to Jira. This is a write to a
-      shared board, so publish exactly the commitment you were given -- do not
-      round it, revise it, or add scope. Confirm what you published.
-    model: claude-sonnet-5
-    tool_selectors: ["jira.publish_sprint_plan"]
-    max_iterations: 3
-    # This agent mutates a system of record, so the graph pauses and waits for a
-    # human before it runs. See app/graph/worker.py.
+    allowed_tool_selectors: ["jira.publish_sprint_plan"]
+    allowed_models: ["claude-sonnet-5"]
+    default_model: claude-sonnet-5
+    max_iterations_limit: 4
+    # This envelope mutates a system of record, so every agent built in it
+    # pauses for a human first. Set here, never on the synthesized agent.
     requires_approval: true
+    policy: |
+      This writes to a shared board. Publish exactly the commitment you were
+      given -- do not round it, revise it, or add scope of your own. Confirm
+      precisely what you published.

@@ -16,26 +16,48 @@ specific way: adding a capability means editing a prompt, the tool list grows
 until selection degrades, and there is no point at which you can say *why* a
 particular tool was used. This project inverts that.
 
-**Agents are data.** There is no `JiraAgent` class anywhere in the codebase.
-An agent is a record in [`backend/config/agents.yaml`](../backend/config/agents.yaml):
+**Agents are created, not configured.** There is no `JiraAgent` class anywhere in
+the codebase, and no agent record in YAML either. What
+[`backend/config/agents.yaml`](../backend/config/agents.yaml) holds is a
+*capability envelope* — permissions and policy, with no prompt:
 
 ```yaml
-- id: velocity_forecaster
-  role: >-
-    Predicts and forecasts sprint velocity: the story points a team is likely
-    to complete in the next upcoming sprint, computed as a rolling average...
-  system_prompt: |
-    You forecast sprint velocity from completed story points...
-  model: claude-sonnet-5
-  tool_selectors: ["jira.get_sprints"]
-  max_iterations: 4
+- id: jira_reporting
+  description: >-
+    Retrieves and summarizes historical Jira sprint records: committed versus
+    completed story points, and the velocity trends that follow from them.
+  allowed_tool_selectors: ["jira.get_sprints", "jira.get_sprint_issues"]
+  allowed_models: ["claude-sonnet-5", "claude-haiku-4-5"]
+  default_model: claude-sonnet-5
+  max_iterations_limit: 8
   requires_approval: false
+  policy: |
+    Never estimate, invent or recall a figure you did not retrieve in this task.
 ```
 
-`app/agents/factory.py` turns that record plus a list of tools into a coroutine.
-The test that matters here is a negative one: **you can add a specialist agent to
-this platform without writing any Python.** Adding an integration is likewise an
-edit to `mcp_servers.yaml`.
+The agent itself is written by the planner, per task, at request time:
+
+```json
+{ "name": "velocity_forecaster",
+  "role": "Projects next-sprint velocity from completed points",
+  "system_prompt": "Work from actual Jira data, never from assumed numbers.\n\nMethod:\n1. Call jira.get_sprints …",
+  "tool_selectors": ["jira.get_sprints", "jira.get_sprint_issues"],
+  "max_iterations": 5 }
+```
+
+`app/agents/composer.py` decides whether that agent is allowed to exist, and
+`app/agents/factory.py` turns the approved spec plus its tools into a coroutine.
+
+Two properties follow, and they are the ones to defend in review:
+
+- **No agent's prompt is a fixed string in this repository.** A `system_prompt`
+  key in `agents.yaml` is rejected at startup — there is a test for it.
+- **The set of possible agents is unbounded, not four.** One envelope produces
+  agents that look nothing like each other; in `tests/test_end_to_end.py` the same
+  `jira_reporting` envelope yields one agent with two tools and another with none.
+
+Adding a *capability* is an edit to `agents.yaml`; adding an integration is an
+edit to `mcp_servers.yaml`. Neither needs Python.
 
 ---
 
@@ -50,21 +72,31 @@ That is a DAG, not a label. So the routing decision produces a plan.
 ### The routing pipeline
 
 1. **Embed the goal.** `app/embeddings.py`.
-2. **Retrieve a menu.** Top-k agents ranked by cosine similarity between the goal
-   and each agent's `role`, top-k tools by their MCP-advertised description, and
-   the top-k most similar *completed* past runs from pgvector.
-3. **One structured-output call.** The planner LLM returns a `TaskPlan`:
-   a list of `{task_id, agent_id, objective, depends_on[]}`.
-4. **Validate against the live registry.** `validate_plan` in
-   `app/graph/state.py` rejects an unknown `agent_id`, a dangling or self
-   dependency, a duplicate task id, and any dependency cycle.
-5. **On rejection, retry exactly once**, feeding the validation error back into
-   the conversation so the model can see which id it invented. A second failure
-   fails the run loudly.
+2. **Retrieve a menu.** Top-k capabilities ranked by cosine similarity between the
+   goal and each envelope's `description`, top-k tools by their MCP-advertised
+   description, and the top-k most similar *completed* past runs from pgvector.
+   The menu shows each envelope's tools **resolved to concrete names**, because
+   resolved names are what the planner's request will be checked against — showing
+   it globs would invite a subset it cannot actually have.
+3. **One structured-output call.** The planner LLM returns a `TaskPlan`: a list of
+   `{task_id, capability_id, agent, objective, depends_on[]}`, where `agent` is a
+   complete agent it designed for that task.
+4. **Validate in two layers.** `validate_plan` in `app/graph/state.py` rejects an
+   unknown `capability_id`, a dangling or self dependency, a duplicate task id, and
+   any dependency cycle. Then `check_envelopes` dry-runs every synthesized agent
+   through `realize_agent`, rejecting any that reaches outside its envelope.
+5. **On rejection, retry exactly once**, feeding the error back into the
+   conversation so the model can see which id it invented or which tool it was
+   refused. A second failure fails the run loudly.
 
-The rule that keeps this honest: **the planner picks from a menu, it never
-invents.** An id that is not in the registry cannot reach execution. That is
-tested in `tests/test_planner.py`.
+The rule that keeps this honest: **the planner designs inside a menu it cannot
+widen.** It writes the agent, but a capability id that is not in the registry, and
+a tool outside the envelope, both stop at validation. Tested in
+`tests/test_planner.py` and `tests/test_composer.py`.
+
+Validating at *planning* time rather than at execution is a deliberate choice: an
+escalation then costs one retry instead of a run that dies halfway through having
+already spent money on earlier tasks.
 
 ### Execution: layered fan-out
 
@@ -84,14 +116,41 @@ The consequence worth stating out loud: **parallelism is a property of the plan,
 not of the graph topology.** A plan with four independent tasks runs four workers
 in one superstep without any change to the graph.
 
-### Tool permissions
+### Tool permissions: the envelope
+
+This is the part that makes runtime agent creation safe rather than reckless.
 
 `tool_selectors` are fnmatch globs over namespaced `<server>.<tool>` names.
-`ToolRegistry.select` resolves them, and the worker binds *only* those tools to
-the model. An empty list means no tools — deliberately different from meaning
-all of them. This is the role-based tool permission boundary, and it is why
-`risk_reviewer` physically cannot call Jira and `jira_analyst` physically cannot
-reach the write tool.
+An envelope's `allowed_tool_selectors` is a **ceiling**; a synthesized agent's
+`tool_selectors` is a **request**. `realize_agent` resolves both through
+`ToolRegistry.select` and grants the request only if it is a subset:
+
+```python
+escalation = requested - permitted        # both are sets of resolved tool names
+if escalation:
+    raise EnvelopeViolationError(...)
+```
+
+**The comparison is on resolved names, never on the glob strings.** That is the
+whole trick. A synthesized selector of `jira.*` is not textually a subset of an
+envelope's `jira.get_*`, but resolving both and comparing names is exact. A
+string-prefix check here would be the bug that lets a generated agent award
+itself the write tool — `tests/test_composer.py` has that exact case.
+
+Three things are taken from the envelope and never from the agent:
+`requires_approval` (so a generated agent cannot approve itself), the model
+allowlist, and the iteration ceiling. The `policy` text is appended *after* the
+generated prompt under an explicit override header, because later instructions
+carry more weight — a policy placed first can be talked over by whatever the
+planner wrote.
+
+The check runs twice: once at planning time so a violation is retryable, and again
+in the worker, because the worker should not trust a plan payload it was handed.
+
+An empty allowance means no tools — deliberately different from meaning all of
+them. It is why an `analysis_only` agent physically cannot call Jira, and why a
+`jira_reporting` agent physically cannot reach the write tool, however it is
+prompted and whatever it names itself.
 
 ---
 
@@ -208,14 +267,14 @@ call *here*:
 2. **It has no dependencies and no network call**, so `docker compose up` works
    offline and tests are deterministic.
 
-It does measurably separate relevant from irrelevant — an unrelated role scores
-*negative* against a sprint goal — but it ranks closely-related agents roughly.
-`embed_text` is the single seam to swap for a hosted embedding model.
+It does measurably separate relevant from irrelevant — an unrelated capability
+scores *negative* against a sprint goal — but it ranks closely-related ones
+roughly. `embed_text` is the single seam to swap for a hosted embedding model.
 
 One consequence is worth internalising because it is a real lesson of the design:
-**`role` text is retrieval surface, not documentation.** `velocity_forecaster`
-originally ranked fourth for a velocity goal because its role never used the word
-"velocity". Fixing the *config* fixed the routing.
+**a capability's `description` is retrieval surface, not documentation.** An early
+version of the forecasting envelope ranked fourth for a velocity goal because its
+text never used the word "velocity". Fixing the *config* fixed the routing.
 
 ---
 

@@ -1,19 +1,22 @@
 # Dynamic AI Agent Orchestration Platform
 
-Submit a natural-language goal. The platform plans which specialist agents should
-handle it, spawns those agents at runtime from a YAML registry, equips each one
-with exactly the MCP tools it is allowed to use, runs them as a DAG, and returns a
-synthesized answer with a full execution trace.
+Submit a natural-language goal. The platform **designs the specialist agents for it
+at runtime** — writing each agent's name, role and system prompt, and choosing its
+tools — inside permission envelopes declared in YAML, runs them as a DAG, and
+returns a synthesized answer with a full execution trace.
 
 > **"Predict the velocity for our next sprint based on previous Jira sprints."**
 >
-> → planner selects `jira_analyst` → `velocity_forecaster` ∥ `capacity_planner`
-> → `risk_reviewer`, each equipped from `agents.yaml`, tools discovered from an MCP
-> server at startup, streamed back to the browser as it happens.
+> → the planner creates a `velocity_forecaster` agent under the `jira_reporting`
+> envelope, writes it a five-step method ("call `jira.get_sprints`… show the
+> arithmetic explicitly… only call it a trend if the movement is sustained"),
+> grants it the two read tools it asked for, and streams the run to the browser.
 
-**The point of the project is that routing is dynamic and configuration-driven.**
-Adding a specialist agent, or a whole new integration, is an edit to a YAML file.
-There is no `JiraAgent` class in this repository.
+**No agent's prompt exists as a fixed string in this repository.** There is no
+`JiraAgent` class and no agent record in YAML. `agents.yaml` declares *capabilities*
+— what a class of agent may touch and the policy it must obey — and the planner
+writes the agent. A generated agent can narrow its envelope, never widen it, which
+is what keeps the approval gate and the tool permissions meaningful.
 
 ![Architecture](docs/architecture.svg)
 
@@ -94,17 +97,21 @@ before either one's tool call returns. Phrasing matters — ask instead to
 produces a sequential chain, because the second task then genuinely depends on the
 first. The plan is a real decision, not a fixed pipeline.
 
-Scenario 4 is the one to try deliberately: `sprint_plan_publisher` is the only
-agent that can write to Jira, and it is marked `requires_approval: true`. The
-graph interrupts *before* the agent runs and checkpoints to Postgres. Decline it
-and the write never happens; the run still completes and says what was skipped.
+Scenario 4 is the one to try deliberately: `jira_writeback` is the only envelope
+that can write to Jira, and it is marked `requires_approval: true`. The graph
+interrupts *before* the agent runs and checkpoints to Postgres. The approval dialog
+shows **the generated prompt that is about to run**, since that is what you are
+actually approving. Decline it and the write never happens; the run still completes
+and says what was skipped.
 
-### Watching the routing change
+### Watching agents get created
 
-The interesting demo is not any single run — it is editing
-`backend/config/agents.yaml`, restarting, and watching a different plan come out
-of the same goal. Comment out `velocity_forecaster` and the planner reroutes.
-The "Registry" panel in the UI shows what the planner is choosing from.
+Run the same goal twice and compare `plan[].agent.system_prompt` in
+`GET /runs/{id}` — the agents are written fresh each time. Then edit
+`backend/config/agents.yaml` and watch the envelope constrain them: narrow
+`jira_reporting`'s `allowed_tool_selectors` to just `jira.get_sprints` and the
+next run's agent can no longer ask for issue-level data, however it is prompted.
+The "Registry" panel in the UI shows the envelopes the planner is designing against.
 
 ---
 
@@ -119,7 +126,7 @@ Interactive docs and the OpenAPI schema are generated at **`/docs`** and
 | `GET` | `/runs/{id}` | Final state, plan, answer, cost and durable trace |
 | `GET` | `/runs/{id}/events` | SSE trace stream |
 | `POST` | `/runs/{id}/approve` | Resume an interrupted run |
-| `GET` | `/agents` | The loaded agent registry, selectors resolved to real tools |
+| `GET` | `/agents` | The loaded capability registry, ceilings resolved to real tools |
 | `GET` | `/tools` | Tools discovered from MCP servers at startup |
 
 ```bash
@@ -136,28 +143,37 @@ renders the full trace.
 
 ---
 
-## Adding an agent (the whole point)
+## Adding a capability (the whole point)
 
-Append to `backend/config/agents.yaml` and restart. No Python.
+You do not add agents — the planner writes those. You add an *envelope*: a new
+class of thing agents are allowed to do. Append to `backend/config/agents.yaml`
+and restart. No Python.
 
 ```yaml
-  - id: release_notes_writer
-    role: >-
-      Drafts release notes from the issues completed in a sprint, grouped by
-      change type and written for a non-technical audience.
-    system_prompt: |
-      You draft release notes from completed sprint issues. Group by type.
-      Never describe work that is not in the issue list you were given.
-    model: claude-sonnet-5
-    tool_selectors: ["jira.get_sprint_issues"]
-    max_iterations: 4
+  - id: release_communication
+    description: >-
+      Drafts release notes and changelogs from the issues completed in a sprint,
+      grouped by change type and written for a non-technical audience.
+    allowed_tool_selectors: ["jira.get_sprint_issues"]
+    allowed_models: ["claude-sonnet-5", "claude-haiku-4-5"]
+    default_model: claude-sonnet-5
+    max_iterations_limit: 4
     requires_approval: false
+    policy: |
+      Never describe work that is not in the issue list you were given.
 ```
 
-`role` is embedded and matched against the user's goal, so **write it as a
+Note what is **not** there: no `system_prompt`. Putting one in is rejected at
+startup — that is the thing this design removed.
+
+`description` is embedded and matched against the user's goal, so **write it as a
 description of capability using the words a user would use**. This is not
-cosmetic: `velocity_forecaster` initially ranked poorly for velocity goals
-because its role never contained the word "velocity".
+cosmetic: an early version of the velocity envelope ranked poorly for velocity
+goals because its text never contained the word "velocity".
+
+`policy` is the escape hatch for a rule that must hold no matter what the planner
+writes. It is appended *after* the generated prompt under an explicit override
+header, because later instructions carry more weight than earlier ones.
 
 Adding an integration is the same kind of edit to
 [`backend/config/mcp_servers.yaml`](backend/config/mcp_servers.yaml).
@@ -187,18 +203,23 @@ Adding an integration is the same kind of edit to
 
 ## How it works, briefly
 
-1. **Startup** loads `agents.yaml` (embedding each `role`), opens a session to
-   every server in `mcp_servers.yaml` and calls `list_tools()`, prepares Postgres,
-   and compiles the graph. Tool schemas are never hardcoded.
-2. **Planning** embeds the goal, retrieves a menu of candidate agents, relevant
-   tools and similar past runs, then makes one structured-output call returning a
-   task DAG. Every `agent_id` is validated against the registry — an invented id
-   is retried once with the error fed back, then fails the run.
+1. **Startup** loads `agents.yaml` (embedding each capability `description`), opens
+   a session to every server in `mcp_servers.yaml` and calls `list_tools()`,
+   prepares Postgres, and compiles the graph. Tool schemas are never hardcoded.
+2. **Planning** embeds the goal, retrieves a menu of candidate capabilities,
+   relevant tools and similar past runs, then makes one structured-output call that
+   **designs an agent per task** — name, role, system prompt, tools. Two checks
+   follow: `capability_id` against the registry, then every synthesized agent is
+   dry-run through the envelope. Either failure is retried once with the error fed
+   back, then fails the run. Checking here means an escalation costs a retry rather
+   than a half-finished run.
 3. **Execution** dispatches every task whose dependencies are satisfied, in
    parallel, via LangGraph `Send`. The graph has four nodes no matter how many
    agents run; parallelism comes from the plan.
-4. **Each worker** binds only the tools its `tool_selectors` match, runs a tool
-   loop bounded by `max_iterations`, and emits a trace event per tool call.
+4. **Each worker** realizes its agent against the envelope again — the worker does
+   not trust the plan it was handed — appends the capability's policy to the
+   generated prompt, binds only the tools that were granted, runs a tool loop
+   bounded by `max_iterations`, and emits a trace event per tool call.
 5. **Synthesis** produces the answer plus a summary that is embedded for future
    planning.
 
@@ -209,16 +230,26 @@ Adding an integration is the same kind of edit to
 - **Jira is mocked.** No credentials were available, so
   `mcp_servers/jira_mock/` serves fixture data over real MCP/stdio. Swapping in a
   real server is a config edit; see the commented block in `mcp_servers.yaml`.
-- **A rolling average is the forecast.** `velocity_forecaster` computes a mean of
-  recent completed points and is instructed to say that is what it is. A real
-  forecasting model is out of scope, and dressing a mean up as one would be worse
-  than saying so.
+- **A rolling average is the forecast.** The forecasting agent computes a mean of
+  recent completed points and says that is what it is. A real forecasting model is
+  out of scope, and dressing a mean up as one would be worse than saying so.
 - **Single tenant, single process.** No auth, one shared set of MCP sessions.
 - **The demo fixture is synthetic** — eight closed sprints with plausible
   committed/completed spreads.
 
 ## Known limitations
 
+- **Generated prompts vary between runs.** This is the direct cost of creating
+  agents at runtime: the same goal can produce differently-worded agents, so
+  output is less repeatable than a hand-tuned prompt would be, and a bad
+  generation is possible. Two things bound it — the capability `policy` carries
+  the rules that must hold regardless of wording, and every run records the exact
+  prompt that ran in `plan[].agent.system_prompt` and in the `task.started` event,
+  so any run can be audited or reproduced after the fact. Pinning a known-good
+  generated prompt per capability would be the next step if determinism mattered
+  more than adaptability.
+- **Planning costs more than it used to.** The planner writes prompts now, so it
+  emits far more output tokens per plan than when it only picked ids.
 - **The live event bus is in-process.** It does not fan out across replicas and
   does not survive a restart. The durable trace in `steps` does, and
   `GET /runs/{id}` serves it.
@@ -229,9 +260,11 @@ Adding an integration is the same kind of edit to
   [architecture.md §5](docs/architecture.md#5-memory-design-and-persistence).
 - **No authentication**, and any caller can approve a paused run.
 - **Schema is created with `create_all`** at boot, not migrations.
-- **Planner quality is untested.** There is no eval set scoring whether the
-  planner picks the right agents; the tests pin the *contract* (it cannot invent
-  an id, it cannot emit a cycle), not the judgement.
+- **Planner quality is untested.** There is no eval set scoring whether the planner
+  picks the right capabilities or writes good prompts; the tests pin the *contract*
+  (it cannot invent an id, it cannot escape an envelope, it cannot emit a cycle),
+  not the judgement. Prompt quality is now part of what the planner is responsible
+  for, which makes this gap larger than it was.
 - **MCP sessions are process-wide**, so tools cannot carry per-user credentials.
 - **No `task.completed` event**, by contract. The client derives per-task
   completion; see [architecture.md §7](docs/architecture.md#7-the-event-contract).

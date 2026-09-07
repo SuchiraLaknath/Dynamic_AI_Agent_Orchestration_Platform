@@ -17,7 +17,7 @@ from typing import Any, Awaitable, Callable
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import Send
 
-from app.agents.registry import AgentRegistry
+from app.agents.registry import CapabilityRegistry
 from app.chat_models import build_chat_model
 from app.events import EventName
 from app.graph.planner import plan_goal, summarize_plan
@@ -33,7 +33,7 @@ PlanRecorder = Callable[[str, list[dict[str, Any]]], Awaitable[None]]
 
 
 def build_planner_node(
-    agents: AgentRegistry,
+    capabilities: CapabilityRegistry,
     tools: ToolRegistry,
     settings: Settings,
     emit: EventEmitter,
@@ -49,11 +49,11 @@ def build_planner_node(
 
         plan, menu, usage = await plan_goal(
             goal=goal,
-            agents=agents,
+            capabilities=capabilities,
             tools=tools,
             similar_runs=similar_runs,
             model=chat_model_builder(settings.planner_model),
-            agent_top_k=settings.planner_agent_top_k,
+            capability_top_k=settings.planner_agent_top_k,
             tool_top_k=settings.planner_tool_top_k,
         )
         tasks = summarize_plan(plan)
@@ -96,7 +96,8 @@ def route_ready_tasks(state: OrchestrationState) -> list[Send] | str:
             "run_id": state["run_id"],
             "goal": state["goal"],
             "task_id": task["task_id"],
-            "agent_id": task["agent_id"],
+            "capability_id": task["capability_id"],
+            "agent": task["agent"],
             "objective": task["objective"],
             "dependency_outputs": {
                 dependency: completed[dependency]
@@ -114,7 +115,7 @@ async def _pass_through(state: OrchestrationState) -> dict[str, Any]:
 
 
 def build_orchestration_graph(
-    agents: AgentRegistry,
+    capabilities: CapabilityRegistry,
     tools: ToolRegistry,
     settings: Settings,
     emit: EventEmitter,
@@ -129,11 +130,11 @@ def build_orchestration_graph(
     builder.add_node(
         "planner",
         build_planner_node(
-            agents, tools, settings, emit, find_similar_runs, record_plan, chat_model_builder
+            capabilities, tools, settings, emit, find_similar_runs, record_plan, chat_model_builder
         ),
     )
     builder.add_node("dispatcher", _pass_through)
-    builder.add_node("worker", build_worker_node(agents, tools, emit, chat_model_builder))
+    builder.add_node("worker", build_worker_node(capabilities, tools, emit, chat_model_builder))
     builder.add_node(
         "synthesizer", build_synthesizer_node(chat_model_builder, settings.synthesizer_model)
     )

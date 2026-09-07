@@ -10,7 +10,7 @@ from typing import AsyncIterator
 
 import pytest
 
-from app.agents.registry import AgentRegistry, load_agent_registry
+from app.agents.registry import CapabilityRegistry, load_capability_registry
 from app.mcp.manager import McpManager, load_server_connections
 from app.mcp.registry import ToolRegistry
 from app.settings import Settings, get_settings
@@ -22,9 +22,9 @@ def settings() -> Settings:
 
 
 @pytest.fixture
-def agents(settings: Settings) -> AgentRegistry:
+def capabilities(settings: Settings) -> CapabilityRegistry:
     """The project's real agents.yaml, so tests fail if it drifts out of shape."""
-    return load_agent_registry(settings.agents_config_path)
+    return load_capability_registry(settings.agents_config_path)
 
 
 @pytest.fixture

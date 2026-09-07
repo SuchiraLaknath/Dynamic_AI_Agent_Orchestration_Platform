@@ -16,7 +16,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
-from app.agents.registry import load_agent_registry
+from app.agents.registry import load_capability_registry
 from app.api import routes_registry, routes_runs
 from app.events import EventBus
 from app.graph.build import build_orchestration_graph
@@ -36,7 +36,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     # Registries first: a malformed agents.yaml should stop the process here,
     # with a message naming the file, rather than at the first request.
-    agents = load_agent_registry(settings.agents_config_path)
+    capabilities = load_capability_registry(settings.agents_config_path)
 
     mcp_manager = McpManager(load_server_connections(settings.mcp_config_path))
     shutdown.push_async_callback(mcp_manager.aclose)
@@ -62,7 +62,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     emit = build_event_recorder(bus, sessions)
     graph = build_orchestration_graph(
-        agents=agents,
+        capabilities=capabilities,
         tools=tools,
         settings=settings,
         emit=emit,
@@ -73,14 +73,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     orchestrator = Orchestrator(graph=graph, bus=bus, sessions=sessions, emit=emit)
 
     app.state.settings = settings
-    app.state.agents = agents
+    app.state.capabilities = capabilities
     app.state.tools = tools
     app.state.bus = bus
     app.state.sessions = sessions
     app.state.orchestrator = orchestrator
 
     print(
-        f"[startup] {len(agents)} agents, {len(tools)} tools from "
+        f"[startup] {len(capabilities)} capabilities, {len(tools)} tools from "
         f"{len(mcp_manager.server_names)} MCP server(s): {', '.join(sorted(tools.tool_names))}"
     )
     try:
@@ -93,9 +93,10 @@ app = FastAPI(
     title="Dynamic AI Agent Orchestration Platform",
     version="0.1.0",
     description=(
-        "Submit a natural-language goal. The planner selects specialist agents from a "
-        "YAML registry, equips each with the MCP tools its selectors match, runs them as "
-        "a DAG, and returns a synthesized answer with a full execution trace."
+        "Submit a natural-language goal. The planner designs specialist agents for it at "
+        "runtime -- writing each one's prompt and choosing its tools -- inside the "
+        "permission envelopes declared in YAML, runs them as a DAG, and returns a "
+        "synthesized answer with a full execution trace."
     ),
     lifespan=lifespan,
 )

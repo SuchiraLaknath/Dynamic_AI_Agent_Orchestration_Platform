@@ -89,21 +89,27 @@ class Orchestrator:
 
         interrupts = state.get("__interrupt__") if isinstance(state, dict) else None
         if interrupts:
-            await self._pause_for_approval(run_id, interrupts)
+            await self._pause_for_approval(run_id, state, interrupts)
             return
 
         await self._complete_run(run_id, state)
 
-    async def _pause_for_approval(self, run_id: str, interrupts: Any) -> None:
+    async def _pause_for_approval(
+        self, run_id: str, state: dict[str, Any], interrupts: Any
+    ) -> None:
         """Publish what needs approving and leave the run paused.
 
         The graph's own checkpoint is the pause -- nothing is held in memory
         here, so the process can restart and the run is still resumable.
+
+        The spend so far is recorded rather than left at zero: by the time a run
+        pauses it has usually already run several agents, and a run waiting on a
+        human should not report that it cost nothing.
         """
         payload = getattr(interrupts[0], "value", {}) or {}
         await self._emit(run_id, EventName.APPROVAL_REQUIRED, dict(payload))
-        await retrieval.finish_run(
-            self._sessions, run_id, status="awaiting_approval", usage=Usage()
+        await retrieval.pause_run(
+            self._sessions, run_id, _total_usage(state.get("usage_records", []))
         )
 
     async def _complete_run(self, run_id: str, state: dict[str, Any]) -> None:
@@ -124,8 +130,11 @@ class Orchestrator:
         })
 
     async def _fail_run(self, run_id: str, message: str) -> None:
+        # No usage is passed: the graph raised rather than returned, so its
+        # accumulated records are unreachable here. Leaving the recorded totals
+        # alone keeps whatever a pause already wrote instead of zeroing it.
         await retrieval.finish_run(
-            self._sessions, run_id, status="failed", usage=Usage(), failure=message
+            self._sessions, run_id, status="failed", failure=message
         )
         await self._emit(run_id, EventName.RUN_FAILED, {"error": message})
 

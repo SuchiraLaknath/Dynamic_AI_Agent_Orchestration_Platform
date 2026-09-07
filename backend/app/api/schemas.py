@@ -70,14 +70,21 @@ class RunResponse(BaseModel):
 
 
 class AgentResponse(BaseModel):
-    """One configured agent, as the UI sees it."""
+    """One configured capability envelope, as the UI sees it.
+
+    Field names are kept from when this described a fixed agent, because they
+    still read correctly for an envelope and the UI is built on them.
+    """
 
     id: str
-    role: str
-    model: str
-    tool_selectors: list[str]
-    bound_tools: list[str] = Field(description="Tools the selectors actually resolved to.")
-    max_iterations: int
+    role: str = Field(description="What this capability can do. Embedded for planner retrieval.")
+    model: str = Field(description="Default model for agents created here.")
+    tool_selectors: list[str] = Field(description="The envelope's allowed selectors.")
+    bound_tools: list[str] = Field(
+        description="Tools those selectors resolve to -- the ceiling a created agent may request."
+    )
+    allowed_models: list[str] = Field(default_factory=list)
+    max_iterations: int = Field(description="Iteration ceiling for agents created here.")
     requires_approval: bool
 
 

@@ -1,18 +1,21 @@
-"""The worker node: runs exactly one task with exactly one agent.
+"""The worker node: creates one agent for one task, then runs it.
 
-Resolves the task's agent_id to a spec, binds only the tools that spec's
-selectors match, builds a runnable with the factory, and runs it. If the spec
-requires approval, it interrupts the graph first and waits for a human decision.
+Takes the agent the planner synthesized, realizes it against its capability
+envelope -- which is where a request for tools it may not have is refused --
+binds exactly the tools it was granted, and runs it. If the envelope requires
+approval, it interrupts the graph first and waits for a human decision.
 
-It does not decide which agent runs, or in what order -- it is handed a task.
+It does not design agents or decide their order; it is handed a task.
 """
 
 from typing import Any, Awaitable, Callable
 
 from langgraph.types import interrupt
 
+from app.agents.composer import EnvelopeViolationError, realize_agent
 from app.agents.factory import AgentExecutionError, build_worker
-from app.agents.registry import AgentRegistry
+from app.agents.models import SynthesizedAgent
+from app.agents.registry import CapabilityRegistry
 from app.chat_models import build_chat_model
 from app.events import EventName
 from app.mcp.registry import ToolRegistry
@@ -22,7 +25,7 @@ ChatModelBuilder = Callable[[str], Any]
 
 
 def build_worker_node(
-    agents: AgentRegistry,
+    capabilities: CapabilityRegistry,
     tools: ToolRegistry,
     emit: EventEmitter,
     chat_model_builder: ChatModelBuilder = build_chat_model,
@@ -36,16 +39,31 @@ def build_worker_node(
     async def run_worker(payload: dict[str, Any]) -> dict[str, Any]:
         run_id = payload["run_id"]
         task_id = payload["task_id"]
-        spec = agents.get(payload["agent_id"])
+        capability = capabilities.get(payload["capability_id"])
         objective = _objective_with_context(payload)
+
+        try:
+            spec = realize_agent(
+                capability, SynthesizedAgent.model_validate(payload["agent"]), tools
+            )
+        except (EnvelopeViolationError, ValueError) as error:
+            # The planner already dry-ran this check, so reaching here means the
+            # plan was tampered with after planning. Refuse rather than degrade.
+            return _failed_result(task_id, payload.get("agent", {}).get("name", "unknown"),
+                                  f"Agent could not be created: {error}")
 
         if spec.requires_approval:
             decision = interrupt({
                 "task_id": task_id,
                 "agent_id": spec.id,
+                "capability_id": capability.id,
                 "objective": payload["objective"],
-                "reason": f"Agent {spec.id!r} is configured as requiring approval.",
-                "tools": spec.tool_selectors,
+                "reason": (
+                    f"Agent {spec.id!r} runs under capability {capability.id!r}, which "
+                    "requires human approval."
+                ),
+                "tools": [tool.name for tool in tools.select(spec.tool_selectors)],
+                "system_prompt": spec.system_prompt,
             })
             if not _is_approved(decision):
                 return _declined_result(task_id, spec.id, decision)
@@ -53,9 +71,14 @@ def build_worker_node(
         await emit(run_id, EventName.TASK_STARTED, {
             "task_id": task_id,
             "agent_id": spec.id,
+            "capability_id": capability.id,
             "objective": payload["objective"],
             "model": spec.model,
             "tools": [tool.name for tool in tools.select(spec.tool_selectors)],
+            # The generated agent is published so a run stays auditable: the
+            # prompt is not in any config file, so the trace is the only record.
+            "role": spec.role,
+            "system_prompt": spec.system_prompt,
         })
 
         async def emit_tool_event(name: str, data: dict[str, Any]) -> None:
@@ -70,20 +93,14 @@ def build_worker_node(
         except AgentExecutionError as error:
             # Recorded as a failed task, not raised: sibling tasks have already
             # done real work, and the synthesizer can report a partial answer.
-            return {
-                "task_outputs": {
-                    task_id: {
-                        "task_id": task_id, "agent_id": spec.id,
-                        "status": "failed", "output": str(error),
-                    }
-                }
-            }
+            return _failed_result(task_id, spec.id, str(error), capability.id)
 
         return {
             "task_outputs": {
                 task_id: {
                     "task_id": task_id,
                     "agent_id": spec.id,
+                    "capability_id": capability.id,
                     "status": "completed",
                     "output": result.output,
                     "tool_calls": result.tool_calls,
@@ -117,6 +134,23 @@ def _objective_with_context(payload: dict[str, Any]) -> str:
         f"You have been given the output of the tasks yours depends on. Build on it; "
         f"do not re-derive it.\n\n{context}"
     )
+
+
+def _failed_result(
+    task_id: str, agent_id: str, message: str, capability_id: str = ""
+) -> dict[str, Any]:
+    """Record a task as failed without killing the run."""
+    return {
+        "task_outputs": {
+            task_id: {
+                "task_id": task_id,
+                "agent_id": agent_id,
+                "capability_id": capability_id,
+                "status": "failed",
+                "output": message,
+            }
+        }
+    }
 
 
 def _is_approved(decision: Any) -> bool:
