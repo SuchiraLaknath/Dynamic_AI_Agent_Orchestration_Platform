@@ -22,6 +22,10 @@ is what keeps the approval gate and the tool permissions meaningful.
 
 Full design rationale: **[docs/architecture.md](docs/architecture.md)**.
 
+New to the codebase? **[docs/codebase-guide.pdf](docs/codebase-guide.pdf)** traces one real
+request from the browser to the answer, explains every module, and assumes no prior knowledge
+of MCP, LangGraph or embeddings.
+
 ---
 
 ## Quick start
