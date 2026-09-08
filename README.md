@@ -35,6 +35,8 @@ of MCP, LangGraph or embeddings.
 ```bash
 cp .env.example .env
 # Put a real key in ANTHROPIC_API_KEY — everything else has working defaults.
+# OPENAI_API_KEY is optional and used only for embeddings; without it retrieval
+# falls back to a local lexical embedder that matches words rather than meaning.
 
 docker compose up --build
 ```
@@ -78,7 +80,7 @@ Tests stub the LLM and **need no API key**. They start the real mock MCP server
 over stdio, so tool discovery and invocation are genuinely exercised.
 
 ```bash
-cd backend && pytest          # 47 tests, ~5s
+cd backend && pytest          # 81 tests, ~12s
 docker compose exec backend pytest      # or inside the container
 ```
 
@@ -227,6 +229,36 @@ Adding an integration is the same kind of edit to
 5. **Synthesis** produces the answer plus a summary that is embedded for future
    planning.
 
+### The compiled graph
+
+Emitted from the compiled object by `docs/render-graph.py`, not drawn by hand — so it
+always shows the topology the app actually built:
+
+```mermaid
+graph TD;
+	__start__([__start__]):::first
+	planner(planner)
+	dispatcher(dispatcher)
+	worker(worker)
+	synthesizer(synthesizer)
+	__end__([__end__]):::last
+	__start__ --> planner;
+	dispatcher -.-> synthesizer;
+	dispatcher -.-> worker;
+	planner --> dispatcher;
+	worker --> dispatcher;
+	synthesizer --> __end__;
+	classDef default fill:#f2f0ff,line-height:1.2
+	classDef first fill-opacity:0
+	classDef last fill:#bfb6fc
+```
+
+The dotted edges out of `dispatcher` are the conditional ones — that is the scheduler,
+and it is the only reason a plan of any shape runs with the right parallelism.
+`worker → dispatcher` is a genuine cycle: each finished task re-opens the question of
+what is runnable now. See
+[architecture.md §3](docs/architecture.md#3-langgraph-and-langchain--what-each-is-actually-used-for).
+
 ---
 
 ## Assumptions
@@ -257,11 +289,18 @@ Adding an integration is the same kind of edit to
 - **The live event bus is in-process.** It does not fan out across replicas and
   does not survive a restart. The durable trace in `steps` does, and
   `GET /runs/{id}` serves it.
-- **Embeddings are lexical, not semantic.** A hashing vectorizer over word and
-  character n-grams — good enough to rank a handful of agents and to keep the
-  stack dependency-free and offline, but it does not understand paraphrase.
-  `embed_text` is the one function to replace. See
-  [architecture.md §5](docs/architecture.md#5-memory-design-and-persistence).
+- **Retrieval degrades without an OpenAI key.** Embeddings come from
+  `text-embedding-3-small`; with no key configured the platform falls back to a local
+  lexical vectorizer that matches shared words rather than meaning. On paraphrased goals
+  that costs real accuracy — measured over a set of reworded queries, top-1 retrieval is
+  **5/6 hosted against 3/6 on the fallback**. Everything still runs; it just retrieves
+  worse. See [architecture.md §5](docs/architecture.md#5-memory-design-and-persistence).
+- **A capability's `description` is retrieval surface.** A description written about
+  *mechanism* rather than *capability* retrieves badly whatever the model: rewording one
+  of the four moved its score for a matching goal from 0.25 to 0.53.
+- **Changing the embedding model invalidates stored vectors.** They live in a different
+  space, so past runs rank arbitrarily until re-run. Nothing crashes if the width matches.
+  `docker compose down -v` clears them.
 - **No authentication**, and any caller can approve a paused run.
 - **Schema is created with `create_all`** at boot, not migrations.
 - **Planner quality is untested.** There is no eval set scoring whether the planner

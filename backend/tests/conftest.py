@@ -10,10 +10,26 @@ from typing import AsyncIterator
 
 import pytest
 
+from app import embeddings
 from app.agents.registry import CapabilityRegistry, load_capability_registry
 from app.mcp.manager import McpManager, load_server_connections
 from app.mcp.registry import ToolRegistry
 from app.settings import Settings, get_settings
+
+
+@pytest.fixture(autouse=True)
+def offline_embeddings(monkeypatch):
+    """Keep the suite hermetic: no test embeds over the network unless it asks.
+
+    Both registry fixtures embed every description when they are constructed, so
+    with a key configured the whole suite would otherwise make live API calls on
+    every run -- slow, costly, and dependent on the network. Tests that mean to
+    exercise the hosted path opt back in explicitly.
+    """
+    monkeypatch.setattr(embeddings, "uses_hosted_embeddings", lambda: False)
+    embeddings._cache.clear()
+    yield
+    embeddings._cache.clear()
 
 
 @pytest.fixture

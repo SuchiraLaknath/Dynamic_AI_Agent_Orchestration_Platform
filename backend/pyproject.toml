@@ -18,6 +18,10 @@ dependencies = [
     "langchain-mcp-adapters>=0.0.9",
     "mcp>=1.2.0",
 
+    # Embeddings only. Anthropic has no embeddings API, so semantic retrieval
+    # needs a second provider; see app/embeddings.py.
+    "openai>=1.60",
+
     "sqlalchemy>=2.0.36",
     # SQLAlchemy's async engine bridges to sync DBAPI calls through greenlet.
     # It is not always pulled in as a transitive dependency, and its absence

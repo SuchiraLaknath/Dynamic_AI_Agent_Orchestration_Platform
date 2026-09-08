@@ -161,6 +161,40 @@ prompted and whatever it names itself.
 | **LangGraph** | The graph runtime: `Send` fan-out, the Postgres checkpointer, and `interrupt()` for human approval | Anything prebuilt. `create_react_agent` is deliberately not used |
 | **LangChain** | Two narrow things: `langchain-mcp-adapters` to turn MCP tools into bindable tools, and `ChatAnthropic` as the model client | Chains, agents, memory, retrievers |
 
+### The compiled graph
+
+This is not a drawing. It is emitted from the compiled object itself by
+`docs/render-graph.py`, so it cannot describe a topology the application did not
+actually build:
+
+```mermaid
+graph TD;
+	__start__([__start__]):::first
+	planner(planner)
+	dispatcher(dispatcher)
+	worker(worker)
+	synthesizer(synthesizer)
+	__end__([__end__]):::last
+	__start__ --> planner;
+	dispatcher -.-> synthesizer;
+	dispatcher -.-> worker;
+	planner --> dispatcher;
+	worker --> dispatcher;
+	synthesizer --> __end__;
+	classDef default fill:#f2f0ff,line-height:1.2
+	classDef first fill-opacity:0
+	classDef last fill:#bfb6fc
+```
+
+Two details are worth reading off it. The dotted edges out of `dispatcher` are the
+**conditional** ones — that single decision point is the scheduler, and it is what
+turns a plan of any shape into the right number of parallel workers. And
+`worker → dispatcher` is a real cycle: every finished task sends control back to be
+re-evaluated. Six nodes on the page, any number of agents at runtime.
+
+Regenerate with `.venv/bin/python docs/render-graph.py`, which also writes
+`docs/graph.mmd` and `docs/graph.png`.
+
 Three LangGraph features carry real weight and are the reason it was chosen over
 hand-rolling an executor:
 
@@ -256,20 +290,36 @@ than having neither.
 
 ### The embedding model, stated honestly
 
-`app/embeddings.py` is a **signed hashing vectorizer over word and character
-n-grams with sublinear term frequency**. It is lexical, not neural: it captures
-shared vocabulary and morphology, not paraphrase. Two reasons that is the right
-call *here*:
+`app/embeddings.py` uses **OpenAI `text-embedding-3-small`**, with a local lexical
+vectorizer as a fallback when no key is configured. Three things about that are
+worth defending.
 
-1. **At this scale, retrieval is ranking, not recall.** With five agents and
-   `top_k = 5`, the menu is the whole registry either way. The retrieval path
-   exists so the design scales to hundreds of agents.
-2. **It has no dependencies and no network call**, so `docker compose up` works
-   offline and tests are deterministic.
+**Why a hosted model at all.** The original implementation was a signed hashing
+vectorizer. Signed hashing is mathematically sound — the ± sign makes the inner
+product unbiased — but it was badly undersized here: the capability descriptions
+produce ~275 features into 384 buckets, of which **23–29% collide**, leaving an
+error of ±0.03–0.08 on similarities of only 0.05–0.25. Measured against exact
+unhashed cosine over the same features it put the **wrong capability first on
+four goals out of five**, including the flagship velocity goal. Raising the
+dimension does not rescue it: at 4096 it still recovered only 3/5. The deeper
+problem is that it compares spelling, not meaning.
 
-It does measurably separate relevant from irrelevant — an unrelated capability
-scores *negative* against a sprint goal — but it ranks closely-related ones
-roughly. `embed_text` is the single seam to swap for a hosted embedding model.
+**Why 384 dimensions.** The model is natively 1536, but the v3 models accept a
+`dimensions` parameter. Requesting 384 keeps stored vectors the same width as the
+existing `Vector(384)` column, so the swap needed **no schema change and no
+migration**. One wrinkle worth knowing: OpenAI normalizes the *full-width* vector,
+so a truncated one is no longer unit length, and `cosine_similarity` is a bare dot
+product. `app/embeddings.py` re-normalizes; without that it would silently rank by
+magnitude as well as direction.
+
+**Why the fallback is not decoration.** Both registries embed their descriptions
+when they are constructed, and the test fixtures construct them — so without a
+working offline path the whole suite would make live API calls on every run. The
+fallback keeps tests hermetic and offline development possible, at a measured
+cost: on reworded queries, top-1 retrieval is **5/6 hosted against 3/6 lexical**.
+
+Anthropic has no embeddings API, so semantic retrieval necessarily means a second
+provider.
 
 One consequence is worth internalising because it is a real lesson of the design:
 **a capability's `description` is retrieval surface, not documentation.** An early
@@ -336,7 +386,7 @@ otherwise bloat the route handlers).
 
 | Area | Now | Production |
 |---|---|---|
-| Embeddings | Lexical hashing vectorizer | A hosted embedding model behind `embed_text` |
+| Embeddings | `text-embedding-3-small` at 384 dims, lexical fallback | Drop the fallback, embed asynchronously, and re-embed stored runs on a model change |
 | Event bus | In-process | Postgres `LISTEN/NOTIFY` before reaching for a broker |
 | Schema | `create_all` at boot | Alembic migrations |
 | Auth | None | Per-tenant auth; MCP credentials scoped per user, not per process |

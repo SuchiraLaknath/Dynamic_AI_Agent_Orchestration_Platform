@@ -13,7 +13,7 @@ from typing import Any
 
 from langchain_core.tools import BaseTool
 
-from app.embeddings import cosine_similarity, embed_text
+from app.embeddings import cosine_similarity, embed_text, embed_texts
 
 
 class ToolNotFoundError(KeyError):
@@ -55,10 +55,16 @@ class ToolRegistry:
                     input_schema=_input_schema_of(tool),
                     tool=tool,
                 )
-        self._vectors = {
-            name: embed_text(f"{name} {discovered.description}")
-            for name, discovered in self._tools.items()
-        }
+        # One batched call rather than one per tool, for the same reason as the
+        # capability registry: this runs once at startup.
+        self._vectors = dict(
+            zip(
+                self._tools,
+                embed_texts(
+                    [f"{name} {tool.description}" for name, tool in self._tools.items()]
+                ),
+            )
+        )
 
     def __len__(self) -> int:
         return len(self._tools)

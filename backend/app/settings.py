@@ -18,9 +18,20 @@ REPO_ROOT = BACKEND_ROOT.parent
 class Settings(BaseSettings):
     """Every environment variable the backend reads. See `.env.example`."""
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    # Anchored to the repository root rather than left relative: the documented
+    # way to run locally is `cd backend && uvicorn app.main:app`, and a relative
+    # path resolves against that working directory, so the root .env was never
+    # read. Under compose the values arrive as real environment variables, which
+    # take precedence over this file either way.
+    model_config = SettingsConfigDict(env_file=REPO_ROOT / ".env", extra="ignore")
 
     anthropic_api_key: str = ""
+
+    # Embeddings only, for planner retrieval and semantic memory. Anthropic has
+    # no embeddings API, so this is a second provider. Leaving it blank falls
+    # back to the offline lexical embedder, which is what the tests run on.
+    openai_api_key: str = ""
+    embedding_model: str = "text-embedding-3-small"
 
     # The planner and synthesizer are platform-level roles, so their models are
     # process configuration. Worker models are per-agent and live in agents.yaml.
@@ -42,6 +53,9 @@ class Settings(BaseSettings):
     planner_tool_top_k: int = 12
     planner_memory_top_k: int = 3
 
+    # text-embedding-3-small is natively 1536, but the v3 models accept a
+    # `dimensions` parameter. 384 keeps stored vectors the same width as the
+    # existing Vector(384) column, so the model swap needed no migration.
     embedding_dimensions: int = 384
 
     cors_allow_origins: str = "http://localhost:5173,http://localhost:3000"

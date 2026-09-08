@@ -13,7 +13,7 @@ from pathlib import Path
 import yaml
 
 from app.agents.models import CapabilitySpec
-from app.embeddings import cosine_similarity, embed_text
+from app.embeddings import cosine_similarity, embed_text, embed_texts
 
 
 class CapabilityRegistryError(ValueError):
@@ -25,9 +25,12 @@ class CapabilityRegistry:
 
     def __init__(self, specs: list[CapabilitySpec]) -> None:
         self._specs: dict[str, CapabilitySpec] = {spec.id: spec for spec in specs}
-        self._vectors: dict[str, list[float]] = {
-            spec.id: embed_text(f"{spec.id} {spec.description}") for spec in specs
-        }
+        # Embedded in one batch rather than one call each: with a hosted model
+        # that is a single request at startup instead of one per capability.
+        descriptions = [f"{spec.id} {spec.description}" for spec in specs]
+        self._vectors: dict[str, list[float]] = dict(
+            zip((spec.id for spec in specs), embed_texts(descriptions))
+        )
 
     def __len__(self) -> int:
         return len(self._specs)
