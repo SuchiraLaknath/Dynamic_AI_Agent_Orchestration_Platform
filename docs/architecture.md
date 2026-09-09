@@ -2,10 +2,10 @@
 
 ![Architecture](architecture.svg)
 
-The one-sentence version: **a goal is planned into a task DAG by an LLM that may
-only choose from a retrieved menu of YAML-defined agents; each task runs an agent
-built at runtime and equipped with exactly the MCP tools its selectors match; the
-whole thing streams a trace.**
+The one-sentence version: **a goal is planned into a task DAG by an LLM that writes
+an agent for each task, inside a retrieved menu of YAML-defined capability envelopes
+it cannot widen; each agent is created at runtime and granted exactly the MCP tools
+its envelope allows; the whole thing streams a trace.**
 
 ---
 

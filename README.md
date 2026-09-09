@@ -196,7 +196,7 @@ Adding an integration is the same kind of edit to
 | **Postgres + pgvector** | One store for all three memory tiers. A second datastore would need to earn its place |
 | **React + Vite** | Fast dev server, no framework overhead |
 | **React Flow** | Renders the run DAG without hand-drawn SVG |
-| **Claude** | `claude-opus-5` plans and synthesizes; workers run `claude-sonnet-5` — set per agent in YAML |
+| **Claude** | `claude-opus-5` plans and synthesizes; workers run `claude-sonnet-5`. Each capability declares the models it permits, and the planner picks one from that list |
 
 **Not used, deliberately:**
 
@@ -325,10 +325,10 @@ changes can be measured; and recording *who* approved a sensitive run.
 
 ```
 backend/
-  config/agents.yaml         the agent registry — add agents here
+  config/agents.yaml         the capability registry — add envelopes here
   config/mcp_servers.yaml    the MCP server registry — add integrations here
   app/
-    agents/                  AgentSpec model, registry (+ role embedding), factory
+    agents/                  capability + agent models, registry, composer, factory
     graph/                   state & plan contract, planner, worker, synthesizer, build
     mcp/                     session manager (timeouts, retries), tool index & search
     memory/                  engine, tables, pgvector retrieval
