@@ -163,9 +163,7 @@ prompted and whatever it names itself.
 
 ### The compiled graph
 
-This is not a drawing. It is emitted from the compiled object itself by
-`docs/render-graph.py`, so it cannot describe a topology the application did not
-actually build:
+The entire topology, which never changes no matter what the planner decides:
 
 ```mermaid
 graph TD;
@@ -191,9 +189,6 @@ Two details are worth reading off it. The dotted edges out of `dispatcher` are t
 turns a plan of any shape into the right number of parallel workers. And
 `worker → dispatcher` is a real cycle: every finished task sends control back to be
 re-evaluated. Six nodes on the page, any number of agents at runtime.
-
-Regenerate with `.venv/bin/python docs/render-graph.py`, which also writes
-`docs/graph.mmd` and `docs/graph.png`.
 
 Three LangGraph features carry real weight and are the reason it was chosen over
 hand-rolling an executor:

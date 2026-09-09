@@ -231,8 +231,7 @@ Adding an integration is the same kind of edit to
 
 ### The compiled graph
 
-Emitted from the compiled object by `docs/render-graph.py`, not drawn by hand — so it
-always shows the topology the app actually built:
+The whole topology, whatever the plan turns out to be:
 
 ```mermaid
 graph TD;

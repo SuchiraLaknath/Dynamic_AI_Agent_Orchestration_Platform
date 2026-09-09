@@ -74,8 +74,9 @@ def replace_mermaid_with_image(html: str, image: str) -> str:
     """
     figure = (
         f'<figure class="graph"><img src="{image}" alt="The compiled LangGraph">'
-        "<figcaption>The compiled LangGraph, emitted from the running application by "
-        "<code>docs/render-graph.py</code>.</figcaption></figure>"
+        "<figcaption>The compiled graph: four nodes, whatever the plan asks for. The "
+        "dotted edges out of <code>dispatcher</code> are the conditional ones."
+        "</figcaption></figure>"
     )
     return re.sub(
         r'<pre class="mermaid"><code>.*?</code></pre>', figure, html, flags=re.DOTALL
@@ -223,11 +224,10 @@ TEMPLATE = """<!doctype html>
        LangChain usage, MCP integration, memory and persistence</p>
   </div>
   <div class="note">
-    <p style="margin:0">This document is <b>generated</b> from <code>README.md</code> and
-    <code>docs/architecture.md</code> by <code>docs/render-report-pdf.py</code>, so it
-    contains exactly what those two files say and cannot drift from them. A separate
-    companion, <code>docs/codebase-guide.pdf</code>, walks through the code itself for
-    a reader new to the codebase.</p>
+    <p style="margin:0">Part 1 covers what the platform does and how to run it. Part 2
+    explains why it is built the way it is, and defends the decisions behind it. A
+    companion document, <code>docs/codebase-guide.pdf</code>, walks through the code
+    itself for a reader coming to it for the first time.</p>
   </div>
 </section>
 
